@@ -1,0 +1,10 @@
+.vscode
+node_modules
+src
+.env
+.gitignore
+.prettierrc.yml
+tsconfig.json
+yarn-error.log
+yarn.lock
+.DS_Store

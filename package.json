@@ -1,0 +1,34 @@
+{
+  "name": "hue-deploy",
+  "version": "0.1.8",
+  "description": "Simple command line deployment for Hue automations and resources.",
+  "main": "index.js",
+  "repository": "https://github.com/justin-caldicott/hue-deploy",
+  "author": "Justin Caldicott",
+  "license": "MIT",
+  "bin": {
+    "hue": "dist/hue.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test:preview": "ts-node src/hue.ts preview --from ~/Documents/GitHub/pi/deconz-deploy/config"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^9.0.11",
+    "@types/json-stable-stringify": "^1.0.36",
+    "@types/pluralize": "0.0.29",
+    "prettier": "^2.2.1",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.2.4"
+  },
+  "dependencies": {
+    "commander": "^11.1.0",
+    "fs-extra": "^9.1.0",
+    "got": "^11.8.2",
+    "json-stable-stringify": "^1.0.1",
+    "param-case": "^3.0.4",
+    "pluralize": "^8.0.0",
+    "yaml": "^1.10.2",
+    "zod": "^1.11.13"
+  }
+}
