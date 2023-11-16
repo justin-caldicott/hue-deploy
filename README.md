@@ -7,6 +7,7 @@ Define resources as a collection of YAML files. Reference other resources by nam
 Hue deploy will take care of:
 
 - Resolving resource ids
+- Inserts `API_KEY` where needed
 - Applying sensible defaults
 - Creating missing resources
 - Updating outdated resources
@@ -17,6 +18,7 @@ Resource schema is defined in described in the [deCONZ API docs](https://dresden
 
 ## Limitations
 
+- This tool should be considered a work in progress and could have breaking changes between versions.
 - Currently only tested with a Deconz gateway
 - Only one collection of resources can be deployed to a given gateway (due to the way resources are tracked to allow update/delete)
 - Dependencies across files are not recommended, as ordering is undefined
@@ -38,6 +40,8 @@ hue gateway set <YOUR_GATEWAY_IP> <YOUR_GATEWAY_API_KEY>
 hue deploy # from current directory
 hue deploy --from ~/my-hue-resources # from specific directory
 ```
+
+Example `some-resources.yml` within directory `~/my-hue-resources`:
 
 ```yml
 resources:
@@ -61,9 +65,20 @@ resources:
       - address: /sensors/my-virtual-switch/state/flag
         operator: eq
         value: 'false'
+
+  - kind: schedule
+    name: bedroom-phone-charger
+    command:
+      address: /api/API_KEY/lights/bedside-socket/state
+      body:
+        on: true
+      method: PUT
+    localtime: W127/T00:30:00
 ```
 
-You can also preview changes to be made with:
+The from directory can be located anywhere. You can have as many resource files as you like within there. Filenames are not significant and can be renamed without any impact.
+
+Preview changes to be made first, with:
 
 ```sh
 hue preview
