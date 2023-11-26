@@ -11,7 +11,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "test:preview": "ts-node src/hue.ts preview --from ~/Documents/GitHub/pi/deconz-deploy/config"
+    "test:preview": "ts-node src/hue.ts preview --from ~/Documents/GitHub/pi/hue"
   },
   "devDependencies": {
     "@types/fs-extra": "^9.0.11",
