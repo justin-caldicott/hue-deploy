@@ -11,6 +11,7 @@ import {
   resourceFileSchema,
 } from './types'
 import { readConfig } from './config'
+import { applyResourceDefaults } from './defaults'
 
 const OUR_IDENTIFIER = 'hue-deploy'
 const OUR_LEGACY_IDENTIFIER = 'deconz-deploy'
@@ -184,26 +185,8 @@ export const deploy = async (fromDirectory: string, preview: boolean) => {
         r.description === OUR_LEGACY_IDENTIFIER))
 
   const getDeployableResource = (resource: Resource): UntypedResource => ({
-    // Additional kind specific defaults
-    // TODO: Extract these somewhere more obvious
-    ...(resource.kind === 'schedule'
-      ? {
-          activation: 'start',
-          time: null, // We use localtime. Null will be set if time not specified, but explicit helps comparisons.
-          status: 'enabled',
-          autodelete: false,
-        }
-      : {}),
-    ...(resource.kind === 'rule' ? { periodic: 0, status: 'enabled' } : {}),
-    ...(resource.kind === 'sensor' // We can only be defining virtual sensors
-      ? {
-          modelid: resource.name,
-          swversion: '1.0',
-          uniqueid: `hue-deploy::sensor::${resource.name}`,
-        }
-      : {}),
-    ...resource,
-    kind: undefined,
+    ...applyResourceDefaults(resource),
+    kind: undefined, // hue-deploy specific metadata
   })
 
   // Apply creates
