@@ -25,6 +25,7 @@ export const applyResourceDefaults = (resource: Resource) => ({
     ? {
         command: {
           method: 'PUT',
+          body: {},
           ...resource.command,
         },
       }
@@ -33,6 +34,7 @@ export const applyResourceDefaults = (resource: Resource) => ({
     ? {
         actions: resource.actions.map((a: object) => ({
           method: 'PUT',
+          body: {},
           ...a,
         })),
       }

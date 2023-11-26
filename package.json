@@ -1,6 +1,6 @@
 {
   "name": "hue-deploy",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "Simple command line deployment for Hue automations and resources.",
   "main": "index.js",
   "repository": "https://github.com/justin-caldicott/hue-deploy",
