@@ -238,22 +238,15 @@ export const deploy = async (fromDirectory: string, preview: boolean) => {
   }
 
   // Updates
-  const updatedResources = configResources
-    .filter(r => !createdResources.includes(r))
+  const possiblyUpdatedResources = configResources
     .filter(r => existingResourcesByFullName.has(getResourceFullName(r)))
     .filter(r =>
       isOurResource(
         existingResourcesByFullName.get(getResourceFullName(r))!.resource
       )
     )
-    .filter(
-      r =>
-        jsonStableStringify({
-          ...existingResourcesByFullName.get(getResourceFullName(r))!.resource,
-          owner: undefined,
-        }) !== jsonStableStringify(r)
-    )
-  for (const r of updatedResources) {
+
+  for (const r of possiblyUpdatedResources) {
     const originalResourceJson = jsonStableStringify({
       ...existingResourcesByFullName.get(getResourceFullName(r))!.resource,
       owner: undefined,

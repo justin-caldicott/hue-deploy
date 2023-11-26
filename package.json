@@ -12,6 +12,7 @@
   "scripts": {
     "build": "tsc",
     "test:preview": "ts-node src/hue.ts preview --from ~/Documents/GitHub/pi/hue",
+    "test:deploy": "ts-node src/hue.ts deploy --from ~/Documents/GitHub/pi/hue",
     "test:backup": "ts-node src/hue.ts backup"
   },
   "devDependencies": {
