@@ -7,8 +7,8 @@ Define resources as a collection of YAML files. Reference other resources by nam
 Hue deploy will take care of:
 
 - Resolving resource ids
-- Inserts `API_KEY` where needed
 - Applying sensible defaults
+- Removes the need to prefix schedule.command.address with `/api/<GATEWAY_API_KEY>`, so schedule command addresses are consistent with rule action addresses
 - Creating missing resources
 - Updating outdated resources
 - Deleting removed resources (where created by hue-deploy)
@@ -69,7 +69,7 @@ resources:
   - kind: schedule
     name: bedroom-phone-charger
     command:
-      address: /api/API_KEY/lights/bedside-socket/state
+      address: lights/bedside-socket/state
       body:
         on: true
       method: PUT

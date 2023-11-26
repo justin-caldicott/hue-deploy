@@ -1,7 +1,10 @@
 import { Resource } from './types'
 
 // TODO: See if there's a way to make this clearer
-export const applyResourceDefaults = (resource: Resource) => ({
+export const applyResourceDefaults = (
+  resource: Resource,
+  gatewayApiKey: string
+) => ({
   // Top level defaults
   ...(resource.kind === 'schedule'
     ? {
@@ -26,7 +29,15 @@ export const applyResourceDefaults = (resource: Resource) => ({
         command: {
           method: 'PUT',
           body: {},
-          ...resource.command,
+          ...{
+            ...resource.command,
+            ...(resource.command.address &&
+            !resource.command.address.startsWith('/api')
+              ? {
+                  address: `/api/${gatewayApiKey}${resource.command.address}`,
+                }
+              : {}),
+          },
         },
       }
     : {}),

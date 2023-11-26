@@ -35,10 +35,12 @@ export const deploy = async (fromDirectory: string, preview: boolean) => {
     )
   }
 
+  const gatewayApiKey = config.gatewayApiKey
+
   const getUrl = (kind: ResourceKind, id?: number) =>
-    `http://${config.gatewayHost}/api/${config.gatewayApiKey}/${pluralize(
-      kind
-    )}${id ? `/${id}` : ''}`
+    `http://${config.gatewayHost}/api/${gatewayApiKey}/${pluralize(kind)}${
+      id ? `/${id}` : ''
+    }`
 
   const getFullId = (kind: ResourceKind, id: number) =>
     `/${pluralize(kind)}/${id}`
@@ -130,7 +132,6 @@ export const deploy = async (fromDirectory: string, preview: boolean) => {
     }
   })
   replacements.sort((a, b) => b.search.length - a.search.length)
-  replacements.push({ search: 'API_KEY', replace: config.gatewayApiKey })
 
   const applyReplacements = (yaml: string) => {
     replacements.forEach(({ search, replace }) => {
@@ -176,7 +177,7 @@ export const deploy = async (fromDirectory: string, preview: boolean) => {
   configResources.forEach(r => markAsOurResource(r))
 
   const isOurResource = (r: Resource) =>
-    (r.kind === 'rule' && r.owner === config.gatewayApiKey) ||
+    (r.kind === 'rule' && r.owner === gatewayApiKey) ||
     (r.kind === 'sensor' &&
       (r.manufacturername === OUR_IDENTIFIER ||
         r.manufacturername === OUR_LEGACY_IDENTIFIER)) ||
@@ -185,7 +186,7 @@ export const deploy = async (fromDirectory: string, preview: boolean) => {
         r.description === OUR_LEGACY_IDENTIFIER))
 
   const getDeployableResource = (resource: Resource): UntypedResource => ({
-    ...applyResourceDefaults(resource),
+    ...applyResourceDefaults(resource, gatewayApiKey),
     kind: undefined, // hue-deploy specific metadata
   })
 
@@ -197,8 +198,12 @@ export const deploy = async (fromDirectory: string, preview: boolean) => {
   for (const r of createdResources) {
     const url = getUrl(r.kind)
     const deployableResourceJson = JSON.stringify(getDeployableResource(r))
+
+    console.log(`CREATE ${r.kind}`)
+    console.log(`AFTER  ${deployableResourceJson}`)
+
     if (preview) {
-      console.log('post', url, deployableResourceJson)
+      console.log(`POST   ${url} ${deployableResourceJson}`)
     } else {
       const response = await got.post(url, {
         body: deployableResourceJson,
@@ -208,7 +213,7 @@ export const deploy = async (fromDirectory: string, preview: boolean) => {
         const body = JSON.parse(response.body)
         const id = parseInt(body[0].success.id)
         console.log(
-          `Created ${getResourceFullName(r)}: ${getFullId(r.kind, id)}`
+          `CREATED ${getResourceFullName(r)}: ${getFullId(r.kind, id)}`
         )
         existingResourcesByFullName.set(getResourceFullName(r), {
           id,
@@ -216,12 +221,13 @@ export const deploy = async (fromDirectory: string, preview: boolean) => {
         })
       } else {
         console.error(
-          `Failed to create ${getResourceFullName(r)}: ${response.statusCode} ${
+          `FAILED TO CREATE ${getResourceFullName(r)}: ${response.statusCode} ${
             response.body
           } ${deployableResourceJson}`
         )
       }
     }
+    console.log() // new line
   }
 
   // Updates
@@ -249,30 +255,31 @@ export const deploy = async (fromDirectory: string, preview: boolean) => {
     const deployableResourceJson = jsonStableStringify(getDeployableResource(r))
     if (deployableResourceJson === originalResourceJson) continue
 
-    console.log(
-      `Update diff:\n${originalResourceJson}\n${deployableResourceJson}`
-    )
     const url = getUrl(
       r.kind,
       existingResourcesByFullName.get(getResourceFullName(r))!.id
     )
+    console.log(`UPDATE ${getResourceFullName(r)}`)
+    console.log(`BEFORE ${originalResourceJson}`)
+    console.log(`AFTER  ${deployableResourceJson}`)
     if (preview) {
-      console.log('put', url, deployableResourceJson)
+      console.log(`PUT    ${url} ${deployableResourceJson}`)
     } else {
       const response = await got.put(url, {
         body: deployableResourceJson,
         throwHttpErrors: false,
       })
       if (response.statusCode === 200) {
-        console.log(`Updated ${getResourceFullName(r)}`)
+        console.log(`UPDATED ${getResourceFullName(r)}`)
       } else {
         console.error(
-          `Failed to update ${getResourceFullName(r)}: ${response.statusCode} ${
+          `FAILED TO UPDATE ${getResourceFullName(r)}: ${response.statusCode} ${
             response.body
-          } ${deployableResourceJson}`
+          }`
         )
       }
     }
+    console.log() // new line
   }
 
   // Deletes
@@ -285,7 +292,7 @@ export const deploy = async (fromDirectory: string, preview: boolean) => {
     const url = getUrl(r.resource.kind, r.id)
     const body = JSON.stringify({ ...r, kind: undefined })
     if (preview) {
-      console.log('delete', url, body)
+      console.log(`DELETE ${url} ${body}\n`)
     } else {
       const response = await got.delete(url, {
         body,
@@ -294,10 +301,10 @@ export const deploy = async (fromDirectory: string, preview: boolean) => {
       if (response.statusCode === 200) {
         const body = JSON.parse(response.body)
         const id = parseInt(body[0].success.id)
-        console.log(`Deleted ${getResourceFullName(r.resource)}`)
+        console.log(`DELETED ${getResourceFullName(r.resource)}`)
       } else {
         console.error(
-          `Failed to delete ${getResourceFullName(r.resource)}: ${
+          `FAILED TO DELETE ${getResourceFullName(r.resource)}: ${
             response.statusCode
           } ${response.body} ${body}`
         )
