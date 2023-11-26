@@ -8,3 +8,4 @@ tsconfig.json
 yarn-error.log
 yarn.lock
 .DS_Store
+gateway-backup-*
