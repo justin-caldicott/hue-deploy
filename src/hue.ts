@@ -3,6 +3,7 @@
 import { Command } from 'commander'
 import { deploy } from './deploy'
 import { readConfig, writeConfig } from './config'
+import { backup } from './backup'
 
 const program = new Command()
 
@@ -27,6 +28,11 @@ program
   )
   .option('-f, --from <directory>', 'specific directory to preview deploy for')
   .action(options => deploy(options.from ?? process.cwd(), true))
+
+program
+  .command('backup')
+  .description('make a local backup of the hue gateway configuration')
+  .action(options => backup())
 
 const gateway = program
   .command('gateway')

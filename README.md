@@ -84,6 +84,14 @@ Preview changes to be made first, with:
 hue preview
 ```
 
+### Other commands
+
+When using hue deploy to manage automations, the following support commands can be useful too:
+
+`hue backup`
+
+Creates a backup of the gateway configuration and saves to to the current directory, as a file called `gateway-backup-{ISO-date-time}.zip`.
+
 ## Contributing
 
 Please raise issues for any bugs/feature requests.
