@@ -142,7 +142,14 @@ export const deploy = async (fromDirectory: string, preview: boolean) => {
 
   const configResources = (
     await Promise.all(
-      (await fse.readdir(fromDirectory))
+      (
+        await fse.readdir(fromDirectory)
+      )
+        .filter(
+          f =>
+            f.toLowerCase().endsWith('.yml') ||
+            f.toLowerCase().endsWith('.yaml')
+        )
         .map(f => `${fromDirectory}/${f}`)
         .map(
           async f =>
