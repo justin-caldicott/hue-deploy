@@ -14,7 +14,6 @@ import { readConfig } from './config'
 import { applyResourceDefaults } from './defaults'
 
 const OUR_IDENTIFIER = 'hue-deploy'
-const OUR_LEGACY_IDENTIFIER = 'deconz-deploy'
 
 export const deploy = async (fromDirectory: string, preview: boolean) => {
   console.log(
@@ -185,12 +184,8 @@ export const deploy = async (fromDirectory: string, preview: boolean) => {
 
   const isOurResource = (r: Resource) =>
     (r.kind === 'rule' && r.owner === gatewayApiKey) ||
-    (r.kind === 'sensor' &&
-      (r.manufacturername === OUR_IDENTIFIER ||
-        r.manufacturername === OUR_LEGACY_IDENTIFIER)) ||
-    (r.kind === 'schedule' &&
-      (r.description === OUR_IDENTIFIER ||
-        r.description === OUR_LEGACY_IDENTIFIER))
+    (r.kind === 'sensor' && r.manufacturername === OUR_IDENTIFIER) ||
+    (r.kind === 'schedule' && r.description === OUR_IDENTIFIER)
 
   const getDeployableResource = (resource: Resource): UntypedResource => ({
     ...applyResourceDefaults(resource, gatewayApiKey),
