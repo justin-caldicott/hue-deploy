@@ -2,7 +2,7 @@ import os from 'os'
 import * as fse from 'fs-extra'
 import { Config, configSchema } from './types'
 
-const configPath = `${os.homedir()}/.huedeploy`
+const configPath = `${os.homedir()}/.hue-deploy`
 
 export const readConfig = () =>
   configSchema.parse(
