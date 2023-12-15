@@ -98,6 +98,7 @@ export const deploy = async (fromDirectory: string, preview: boolean) => {
   const sensorTypeNames = new Map<string, string>([
     ['ZHATemperature', 'temperature'],
     ['ZHALightLevel', 'light'],
+    ['ZHAHumidity', 'humidity'],
   ])
   const existingSensorResourcesByUniqueId = Array.from(existingResources)
     .filter(
