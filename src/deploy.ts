@@ -2,16 +2,11 @@ import * as fse from 'fs-extra'
 import * as YAML from 'yaml'
 import got from 'got'
 import pluralize from 'pluralize'
-import { paramCase } from 'param-case'
 import jsonStableStringify from 'json-stable-stringify'
-import {
-  Resource,
-  ResourceKind,
-  UntypedResource,
-  resourceFileSchema,
-} from './types'
+import { Resource, ResourceKind, SensorType, resourceFileSchema } from './types'
 import { readConfig } from './config'
 import { applyResourceDefaults } from './defaults'
+import { paramCase } from 'param-case'
 
 const OUR_IDENTIFIER = 'hue-deploy'
 
@@ -44,11 +39,15 @@ export const deploy = async (fromDirectory: string, preview: boolean) => {
   const getFullId = (kind: ResourceKind, id: number) =>
     `/${pluralize(kind)}/${id}`
 
-  const getFullName = (kind: ResourceKind, name: string) =>
-    `/${pluralize(kind)}/${name}`
-
-  const getResourceFullName = (resource: Resource) =>
+  const getFullName = (resource: Pick<Resource, 'kind' | 'name'>) =>
     `/${pluralize(resource.kind)}/${resource.name}`
+
+  const getSensorTypeShortName = (sensorType: SensorType) => {
+    const withoutPrefix = sensorType.startsWith('CLIP')
+      ? sensorType.substring('CLIP'.length)
+      : sensorType.substring('ZHA'.length)
+    return paramCase(withoutPrefix)
+  }
 
   const kindsToFetch: ResourceKind[] = [
     'light',
@@ -61,7 +60,7 @@ export const deploy = async (fromDirectory: string, preview: boolean) => {
   const existingResources = (
     await Promise.all(kindsToFetch.map(kind => got.get(getUrl(kind))))
   )
-    .map(rsp => Object.entries<UntypedResource>(JSON.parse(rsp.body)))
+    .map(rsp => Object.entries<any>(JSON.parse(rsp.body))) // TODO: Not any
     .reduce((acc, idResourcePairs, idx) => {
       idResourcePairs.forEach(([id, resource]) => {
         acc.push({
@@ -81,53 +80,68 @@ export const deploy = async (fromDirectory: string, preview: boolean) => {
       return acc
     }, [] as { id: number; resource: Resource }[])
 
-  // TODO: existingResourcesByFullName doesn't handle that it's possible to have multiple resources with the same name.
-  // This tends to happen when using a motion sensor supporting other sensor types as well.
-  const existingResourcesByFullName = existingResources.reduce(
-    (acc, idResourcePair) => {
-      acc.set(
-        getFullName(idResourcePair.resource.kind, idResourcePair.resource.name),
-        idResourcePair
-      )
-      return acc
-    },
-    new Map<string, { id: number; resource: Resource }>()
-  )
+  // Multi-type sensors have the same typed name
+  const sensorTypesByTypedName = existingResources.reduce((acc, r) => {
+    if (r.resource.kind !== 'sensor') return acc
+    const typedName = getFullName(r.resource)
+    const types = acc.get(typedName) ?? new Set<SensorType>()
+    types.add(r.resource.type)
+    acc.set(typedName, types)
+    return acc
+  }, new Map<string, Set<SensorType>>())
 
-  // Add aliases for related sensors
-  const sensorTypeNames = new Map<string, string>([
-    ['ZHATemperature', 'temperature'],
-    ['ZHALightLevel', 'light'],
-    ['ZHAHumidity', 'humidity'],
-  ])
-  const existingSensorResourcesByUniqueId = Array.from(existingResources)
+  const getSensorTypes = (resource: Resource) =>
+    sensorTypesByTypedName.get(getFullName(resource)) ?? new Set<SensorType>()
+
+  // So we additionally qualify multi-type sensors with the sensor type
+  const existingResourcesByFullName = existingResources.reduce((acc, r) => {
+    acc.set(
+      `${getFullName({
+        kind: r.resource.kind,
+        name: paramCase(r.resource.name.toLowerCase()),
+      })}${
+        r.resource.kind === 'sensor' && getSensorTypes(r.resource).size > 1
+          ? `:${getSensorTypeShortName(r.resource.type)}`
+          : ''
+      }`,
+      r
+    )
+    return acc
+  }, new Map<string, { id: number; resource: Resource }>())
+
+  const prioritySensorTypes: SensorType[] = ['ZHATemperature', 'ZHAPresence'] // Higher index = higher priority
+
+  // Priority, or single sensor types do not need to be qualified
+  // e.g. For a sensor with both temperature and humidity types, "bathroom-temperature-sensor" is enough to reference the temperature type sensor
+  const existingPriorityTypeSensorsByShortcutFullName = existingResources
     .filter(
-      r => r.resource.kind === 'sensor' && r.resource.type === 'ZHAPresence'
+      r =>
+        r.resource.kind === 'sensor' &&
+        getSensorTypes(r.resource).size > 1 &&
+        prioritySensorTypes.indexOf(r.resource.type) ===
+          Math.max(
+            ...Array.from(getSensorTypes(r.resource)).map(t =>
+              prioritySensorTypes.indexOf(t)
+            )
+          )
     )
     .reduce((acc, r) => {
-      acc.set(r.resource.uniqueid.substring(0, 26), r.resource)
+      acc.set(
+        getFullName({
+          kind: r.resource.kind,
+          name: paramCase(r.resource.name.toLowerCase()),
+        }),
+        r
+      )
       return acc
-    }, new Map<string, Resource>())
+    }, new Map<string, { id: number; resource: Resource }>())
 
-  const getMainSensor = (resource: Resource): Resource | null =>
-    resource.kind === 'sensor' && sensorTypeNames.has(resource.type)
-      ? existingSensorResourcesByUniqueId.get(
-          resource.uniqueid.substring(0, 26)
-        ) ?? null
-      : null
-
-  const replacements = Array.from(existingResources).map(r => {
-    const mainSensor = getMainSensor(r.resource)
-    const normalizedFullName = `/${pluralize(r.resource.kind)}/${
-      // toLowerCase() before paramCase(), to avoid e.g. UM-B1E becoming um-b1-e, should be um-b1e
-      mainSensor
-        ? `${paramCase(mainSensor.name.toLowerCase())}:${sensorTypeNames.get(
-            r.resource.type
-          )}`
-        : paramCase(r.resource.name.toLowerCase(), {})
-    }`
+  const replacements = [
+    ...Array.from(existingResourcesByFullName),
+    ...Array.from(existingPriorityTypeSensorsByShortcutFullName),
+  ].map(([fullName, r]) => {
     return {
-      search: normalizedFullName,
+      search: fullName,
       replace: getFullId(r.resource.kind, r.id),
     }
   })
@@ -164,7 +178,7 @@ export const deploy = async (fromDirectory: string, preview: boolean) => {
   }, [])
 
   const configResourcesByFullName = configResources.reduce((acc, r) => {
-    acc.set(getFullName(r.kind, r.name), r)
+    acc.set(getFullName(r), r)
     return acc
   }, new Map<string, Resource>())
 
@@ -188,14 +202,15 @@ export const deploy = async (fromDirectory: string, preview: boolean) => {
     (r.kind === 'sensor' && r.manufacturername === OUR_IDENTIFIER) ||
     (r.kind === 'schedule' && r.description === OUR_IDENTIFIER)
 
-  const getDeployableResource = (resource: Resource): UntypedResource => ({
+  const getDeployableResource = (resource: Resource): object => ({
     ...applyResourceDefaults(resource, gatewayApiKey),
     kind: undefined, // hue-deploy specific metadata
   })
 
   // Apply creates
+  // TODO: Test, or probably validate config to prevent, resources of the same kind with the same name
   const createdResources = configResources.filter(
-    r => !existingResourcesByFullName.has(getResourceFullName(r))
+    r => !existingResourcesByFullName.has(getFullName(r))
   )
 
   for (const r of createdResources) {
@@ -215,16 +230,14 @@ export const deploy = async (fromDirectory: string, preview: boolean) => {
       if (response.statusCode === 200) {
         const body = JSON.parse(response.body)
         const id = parseInt(body[0].success.id)
-        console.log(
-          `CREATED ${getResourceFullName(r)}: ${getFullId(r.kind, id)}`
-        )
-        existingResourcesByFullName.set(getResourceFullName(r), {
+        console.log(`CREATED ${getFullName(r)}: ${getFullId(r.kind, id)}`)
+        existingResourcesByFullName.set(getFullName(r), {
           id,
           resource: r,
         })
       } else {
         console.error(
-          `FAILED TO CREATE ${getResourceFullName(r)}: ${response.statusCode} ${
+          `FAILED TO CREATE ${getFullName(r)}: ${response.statusCode} ${
             response.body
           } ${deployableResourceJson}`
         )
@@ -235,16 +248,14 @@ export const deploy = async (fromDirectory: string, preview: boolean) => {
 
   // Updates
   const possiblyUpdatedResources = configResources
-    .filter(r => existingResourcesByFullName.has(getResourceFullName(r)))
+    .filter(r => existingResourcesByFullName.has(getFullName(r)))
     .filter(r =>
-      isOurResource(
-        existingResourcesByFullName.get(getResourceFullName(r))!.resource
-      )
+      isOurResource(existingResourcesByFullName.get(getFullName(r))!.resource)
     )
 
   for (const r of possiblyUpdatedResources) {
     const originalResourceJson = jsonStableStringify({
-      ...existingResourcesByFullName.get(getResourceFullName(r))!.resource,
+      ...existingResourcesByFullName.get(getFullName(r))!.resource,
       owner: undefined,
       kind: undefined,
     })
@@ -253,9 +264,9 @@ export const deploy = async (fromDirectory: string, preview: boolean) => {
 
     const url = getUrl(
       r.kind,
-      existingResourcesByFullName.get(getResourceFullName(r))!.id
+      existingResourcesByFullName.get(getFullName(r))!.id
     )
-    console.log(`UPDATE ${getResourceFullName(r)}`)
+    console.log(`UPDATE ${getFullName(r)}`)
     console.log(`BEFORE ${originalResourceJson}`)
     console.log(`AFTER  ${deployableResourceJson}`)
     if (preview) {
@@ -266,10 +277,10 @@ export const deploy = async (fromDirectory: string, preview: boolean) => {
         throwHttpErrors: false,
       })
       if (response.statusCode === 200) {
-        console.log(`UPDATED ${getResourceFullName(r)}`)
+        console.log(`UPDATED ${getFullName(r)}`)
       } else {
         console.error(
-          `FAILED TO UPDATE ${getResourceFullName(r)}: ${response.statusCode} ${
+          `FAILED TO UPDATE ${getFullName(r)}: ${response.statusCode} ${
             response.body
           }`
         )
@@ -281,9 +292,7 @@ export const deploy = async (fromDirectory: string, preview: boolean) => {
   // Deletes
   const deletedResources = Array.from(existingResourcesByFullName.values())
     .filter(r => isOurResource(r.resource))
-    .filter(
-      r => !configResourcesByFullName.has(getResourceFullName(r.resource))
-    )
+    .filter(r => !configResourcesByFullName.has(getFullName(r.resource)))
   for (const r of deletedResources) {
     const url = getUrl(r.resource.kind, r.id)
     const body = JSON.stringify({ ...r, kind: undefined })
@@ -297,10 +306,10 @@ export const deploy = async (fromDirectory: string, preview: boolean) => {
       if (response.statusCode === 200) {
         const body = JSON.parse(response.body)
         const id = parseInt(body[0].success.id)
-        console.log(`DELETED ${getResourceFullName(r.resource)}`)
+        console.log(`DELETED ${getFullName(r.resource)}`)
       } else {
         console.error(
-          `FAILED TO DELETE ${getResourceFullName(r.resource)}: ${
+          `FAILED TO DELETE ${getFullName(r.resource)}: ${
             response.statusCode
           } ${response.body} ${body}`
         )
