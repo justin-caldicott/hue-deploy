@@ -59,6 +59,14 @@ export const resourceSchema = z.discriminatedUnion('kind', [
   baseResourceSchema.merge(
     z.object({
       kind: z.literal('group'),
+      scenes: z.array(
+        z.object({
+          id: z.string().min(1),
+          lightcount: z.number(),
+          name: z.string().min(1),
+          transitiontime: z.number(),
+        })
+      ),
     })
   ),
   baseResourceSchema.merge(

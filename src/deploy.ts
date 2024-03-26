@@ -136,15 +136,26 @@ export const deploy = async (fromDirectory: string, preview: boolean) => {
       return acc
     }, new Map<string, { id: number; resource: Resource }>())
 
-  const replacements = [
+  const resourceReplacements = [
     ...Array.from(existingResourcesByFullName),
     ...Array.from(existingPriorityTypeSensorsByShortcutFullName),
-  ].map(([fullName, r]) => {
-    return {
-      search: fullName,
-      replace: getFullId(r.resource.kind, r.id),
-    }
-  })
+  ].map(([fullName, r]) => ({
+    search: fullName,
+    replace: getFullId(r.resource.kind, r.id),
+  }))
+
+  const sceneReplacements = existingResources.flatMap(({ id, resource }) =>
+    resource.kind === 'group'
+      ? resource.scenes.map(s => ({
+          search: `/groups/${paramCase(
+            resource.name.toLowerCase()
+          )}/scenes/${paramCase(s.name.toLowerCase())}`,
+          replace: `/groups/${id}/scenes/${s.id}`,
+        }))
+      : []
+  )
+
+  const replacements = [...resourceReplacements, ...sceneReplacements]
   replacements.sort((a, b) => b.search.length - a.search.length)
 
   const applyReplacements = (yaml: string) => {
