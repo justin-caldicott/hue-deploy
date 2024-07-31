@@ -109,7 +109,11 @@ export const deploy = async (fromDirectory: string, preview: boolean) => {
     return acc
   }, new Map<string, { id: number; resource: Resource }>())
 
-  const prioritySensorTypes: SensorType[] = ['ZHATemperature', 'ZHAPresence'] // Higher index = higher priority
+  const prioritySensorTypes: SensorType[] = [
+    'ZHATemperature',
+    'ZHAPresence',
+    'ZHASwitch',
+  ] // Higher index = higher priority
 
   // Priority, or single sensor types do not need to be qualified
   // e.g. For a sensor with both temperature and humidity types, "bathroom-temperature-sensor" is enough to reference the temperature type sensor
