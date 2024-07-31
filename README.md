@@ -78,7 +78,7 @@ resources:
 
 The from directory can be located anywhere. You can have as many resource files as you like within there. Filenames are not significant and can be renamed without any impact.
 
-Where a sensor exposes multiple sensor types for the same sensor name, individual sensors can be referenced by suffixing the name with e.g. `:temperature` or `:humidity`. For convenience, the "main" sensor type is allowed to also be referenced without additional qualification. E.g. For a motion sensor also reporting temperature, the unqualified sensor name resolves to the presence type sensor.
+Where a sensor exposes multiple sensor types for the same sensor name, individual sensors can be referenced by suffixing the name with e.g. `:temperature`, `:humidity` or `:relative-rotary`. For convenience, the "main" sensor type is allowed to also be referenced without additional qualification. E.g. For a motion sensor also reporting temperature, the unqualified sensor name resolves to the presence type sensor.
 
 Preview changes to be made first, with:
 
