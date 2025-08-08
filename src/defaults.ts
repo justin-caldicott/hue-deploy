@@ -9,7 +9,7 @@ export const applyResourceDefaults = (
   ...(resource.kind === 'schedule'
     ? {
         activation: 'start',
-        time: null, // We use localtime. Null will be set if time not specified, but explicit helps comparisons.
+        time: '', // We use localtime. Empty string will be set if time not specified, but explicit helps comparisons.
         status: 'enabled',
         autodelete: false,
       }
