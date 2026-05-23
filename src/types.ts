@@ -100,6 +100,7 @@ export const resourceSchema = z.discriminatedUnion('kind', [
     z.object({
       kind: z.literal('schedule'),
       description: z.string().optional(),
+      status: z.enum(['enabled', 'disabled']).optional(),
       command: z.object({
         address: z.string().min(1),
         body: z.record(z.unknown()).optional(),
