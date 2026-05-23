@@ -100,7 +100,7 @@ Please raise issues for any bugs/feature requests.
 
 Testing has been through actual use with a good number of resources on a home setup. There are no automated tests yet. Can hopefully add some soonish.
 
-## Release process
+## Release process
 
 Update the version number in `package.json` and:
 
